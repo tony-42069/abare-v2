@@ -199,3 +199,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - This project is the successor to the original ABARE platform
 - Built with modern, open-source technologies
 - Developed for the commercial real estate industry 
+
+## Project Status
+
+This project is currently under active development. The frontend structure is in place, and we are now working on implementing the backend authentication API. 
