@@ -2,7 +2,7 @@
 Configuration settings for the ABARE Platform v2 backend
 """
 import os
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 from typing import Optional, List, Dict, Any
 
 
@@ -39,10 +39,11 @@ class Settings(BaseSettings):
     # Logging settings
     LOG_LEVEL: str = "INFO"
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": True
+    }
 
 
 # Create settings instance

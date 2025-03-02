@@ -1,135 +1,76 @@
-import React from 'react';
 import { NextPage } from 'next';
-import Head from 'next/head';
-import { Container, Title, Grid, Card, Text, Group, RingProgress, SimpleGrid, Paper } from '@mantine/core';
-import { MainLayout } from '../components/Layout/MainLayout';
+import { useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { Container, Title, Text, Button, Group, Card, SimpleGrid } from '@mantine/core';
+import { useAuth } from '../hooks/useAuth';
 
-const Dashboard: NextPage = () => {
-  return (
-    <MainLayout>
-      <Head>
-        <title>Dashboard - ABARE Platform</title>
-      </Head>
-      
-      <Container size="lg" py={20}>
-        <Title order={1} mb={30}>Dashboard</Title>
-        
-        <SimpleGrid cols={4} breakpoints={[{ maxWidth: 'sm', cols: 1 }, { maxWidth: 'md', cols: 2 }]} mb={30}>
-          <Card p="md" radius="md" withBorder>
-            <Group position="apart">
-              <div>
-                <Text color="dimmed" size="xs" transform="uppercase" weight={700}>
-                  Total Reports
-                </Text>
-                <Text weight={700} size="xl">
-                  128
-                </Text>
-              </div>
-              <RingProgress
-                size={80}
-                roundCaps
-                thickness={8}
-                sections={[{ value: 65, color: 'blue' }]}
-                label={
-                  <Text color="blue" weight={700} align="center" size="lg">
-                    65%
-                  </Text>
-                }
-              />
-            </Group>
-          </Card>
-          
-          <Card p="md" radius="md" withBorder>
-            <Group position="apart">
-              <div>
-                <Text color="dimmed" size="xs" transform="uppercase" weight={700}>
-                  Active Users
-                </Text>
-                <Text weight={700} size="xl">
-                  42
-                </Text>
-              </div>
-              <RingProgress
-                size={80}
-                roundCaps
-                thickness={8}
-                sections={[{ value: 82, color: 'green' }]}
-                label={
-                  <Text color="green" weight={700} align="center" size="lg">
-                    82%
-                  </Text>
-                }
-              />
-            </Group>
-          </Card>
-          
-          <Card p="md" radius="md" withBorder>
-            <Group position="apart">
-              <div>
-                <Text color="dimmed" size="xs" transform="uppercase" weight={700}>
-                  Data Sets
-                </Text>
-                <Text weight={700} size="xl">
-                  56
-                </Text>
-              </div>
-              <RingProgress
-                size={80}
-                roundCaps
-                thickness={8}
-                sections={[{ value: 45, color: 'orange' }]}
-                label={
-                  <Text color="orange" weight={700} align="center" size="lg">
-                    45%
-                  </Text>
-                }
-              />
-            </Group>
-          </Card>
-          
-          <Card p="md" radius="md" withBorder>
-            <Group position="apart">
-              <div>
-                <Text color="dimmed" size="xs" transform="uppercase" weight={700}>
-                  Pending Tasks
-                </Text>
-                <Text weight={700} size="xl">
-                  12
-                </Text>
-              </div>
-              <RingProgress
-                size={80}
-                roundCaps
-                thickness={8}
-                sections={[{ value: 25, color: 'red' }]}
-                label={
-                  <Text color="red" weight={700} align="center" size="lg">
-                    25%
-                  </Text>
-                }
-              />
-            </Group>
-          </Card>
-        </SimpleGrid>
-        
-        <Grid gutter="md">
-          <Grid.Col span={8}>
-            <Paper p="md" radius="md" withBorder>
-              <Title order={3} mb={15}>Recent Activity</Title>
-              <Text>This is where charts and activity logs would be displayed.</Text>
-            </Paper>
-          </Grid.Col>
-          
-          <Grid.Col span={4}>
-            <Paper p="md" radius="md" withBorder>
-              <Title order={3} mb={15}>Notifications</Title>
-              <Text>This is where notifications would be displayed.</Text>
-            </Paper>
-          </Grid.Col>
-        </Grid>
+const DashboardPage: NextPage = () => {
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <Container>
+        <Text>Loading...</Text>
       </Container>
-    </MainLayout>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect to login
+  }
+
+  return (
+    <Container size="lg" py="xl">
+      <Group position="apart" mb="xl">
+        <div>
+          <Title>Dashboard</Title>
+          <Text color="dimmed">Welcome back, {user.full_name || user.email}</Text>
+        </div>
+        <Button onClick={logout} variant="light">
+          Logout
+        </Button>
+      </Group>
+
+      <SimpleGrid cols={3} spacing="lg" breakpoints={[{ maxWidth: 'sm', cols: 1 }]}>
+        <Card shadow="sm" p="lg" radius="md" withBorder>
+          <Title order={3}>Properties</Title>
+          <Text mt="sm" mb="md" color="dimmed">
+            Manage your real estate properties
+          </Text>
+          <Button variant="light" fullWidth onClick={() => router.push('/properties')}>
+            View Properties
+          </Button>
+        </Card>
+
+        <Card shadow="sm" p="lg" radius="md" withBorder>
+          <Title order={3}>Documents</Title>
+          <Text mt="sm" mb="md" color="dimmed">
+            Access and manage your documents
+          </Text>
+          <Button variant="light" fullWidth onClick={() => router.push('/documents')}>
+            View Documents
+          </Button>
+        </Card>
+
+        <Card shadow="sm" p="lg" radius="md" withBorder>
+          <Title order={3}>Analyses</Title>
+          <Text mt="sm" mb="md" color="dimmed">
+            Run and view property analyses
+          </Text>
+          <Button variant="light" fullWidth onClick={() => router.push('/analyses')}>
+            View Analyses
+          </Button>
+        </Card>
+      </SimpleGrid>
+    </Container>
   );
 };
 
-export default Dashboard; 
+export default DashboardPage; 

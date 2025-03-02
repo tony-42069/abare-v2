@@ -4,6 +4,7 @@ import Head from 'next/head';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from '../context/AuthContext';
 import '../styles/globals.css';
 
 // Create a client
@@ -15,7 +16,7 @@ export default function App(props: AppProps) {
   return (
     <>
       <Head>
-        <title>ABARE Platform</title>
+        <title>ABARE Platform v2</title>
         <meta name="viewport" content="minimum-scale=1, initial-scale=1, width=device-width" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
@@ -29,8 +30,10 @@ export default function App(props: AppProps) {
             primaryColor: 'blue',
           }}
         >
-          <Notifications />
-          <Component {...pageProps} />
+          <AuthProvider>
+            <Notifications />
+            <Component {...pageProps} />
+          </AuthProvider>
         </MantineProvider>
       </QueryClientProvider>
     </>

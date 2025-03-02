@@ -64,9 +64,10 @@ class UserInDB(UserBase):
     updated_at: datetime
     last_login: Optional[datetime] = None
     
-    class Config:
-        orm_mode = True
-        allow_population_by_field_name = True
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True
+    }
 
 
 class User(UserBase):
@@ -76,8 +77,9 @@ class User(UserBase):
     updated_at: datetime
     last_login: Optional[datetime] = None
     
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class Token(BaseModel):
