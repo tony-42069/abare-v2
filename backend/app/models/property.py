@@ -4,7 +4,7 @@ Property model for database representation
 from typing import Optional, List, Dict, Any, ClassVar
 from datetime import datetime
 from bson import ObjectId
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class Property(BaseModel):
@@ -39,8 +39,24 @@ class Property(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    model_config = {
-        "populate_by_name": True,
-        "arbitrary_types_allowed": True,
-        "from_attributes": True
-    } 
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "name": "Office Building",
+                "property_type": "office",
+                "property_class": "A",
+                "year_built": 2010,
+                "total_sf": 50000,
+                "address": {
+                    "street": "123 Main St",
+                    "city": "New York",
+                    "state": "NY",
+                    "zip_code": "10001",
+                    "country": "USA"
+                }
+            }
+        }
+    )

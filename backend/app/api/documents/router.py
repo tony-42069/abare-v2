@@ -11,8 +11,10 @@ from bson import ObjectId
 
 # Import local modules
 from app.deps import get_db, get_current_active_user
-from app.models.user import User
+from app.config import settings
+from app.models.document import Document as DocumentModel
 from app.schemas.document import Document, DocumentCreate, DocumentUpdate, DocumentUploadResult
+from app.schemas.user import UserInDB
 
 # Create router
 router = APIRouter()
@@ -23,7 +25,7 @@ logger = logging.getLogger(__name__)
 async def list_documents(
     property_id: Optional[str] = None,
     db=Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Retrieve all documents, optionally filtered by property_id
@@ -32,7 +34,12 @@ async def list_documents(
     if property_id:
         query["property_id"] = property_id
         
-    documents = await db["documents"].find(query).to_list(1000)
+    documents = await db[DocumentModel.collection].find(query)
+    
+    # Handle in-memory DB vs MongoDB
+    if hasattr(documents, "to_list"):
+        documents = await documents.to_list(1000)
+    
     return documents
 
 
@@ -44,7 +51,7 @@ async def upload_document(
     description: Optional[str] = None,
     property_id: Optional[str] = None,
     db=Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Upload a new document
@@ -53,7 +60,7 @@ async def upload_document(
         title = file.filename
         
     # Create uploads directory if it doesn't exist
-    upload_dir = os.path.join("uploads", "documents")
+    upload_dir = settings.UPLOAD_DIRECTORY
     os.makedirs(upload_dir, exist_ok=True)
     
     # Generate a unique filename
@@ -74,19 +81,19 @@ async def upload_document(
     
     # Create document record
     document = {
+        "_id": str(ObjectId()),
         "title": title,
         "description": description,
         "property_id": property_id,
         "file_path": file_path,
         "file_size": os.path.getsize(file_path),
         "file_type": file.content_type,
-        "uploaded_by": str(current_user.id),
+        "uploaded_by": current_user.id,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
     }
     
-    result = await db["documents"].insert_one(document)
-    document["_id"] = str(result.inserted_id)
+    result = await db[DocumentModel.collection].insert_one(document)
     
     # Add processing task to background
     # background_tasks.add_task(process_document, document["_id"], file_path)
@@ -105,18 +112,17 @@ async def upload_document(
 async def get_document(
     document_id: str,
     db=Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Retrieve a document by ID
     """
-    document = await db["documents"].find_one({"_id": ObjectId(document_id)})
+    document = await db[DocumentModel.collection].find_one({"_id": document_id})
     if not document:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found"
         )
-    document["_id"] = str(document["_id"])
     return document
 
 
@@ -125,12 +131,12 @@ async def update_document(
     document_id: str,
     document_update: DocumentUpdate,
     db=Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Update document metadata
     """
-    document = await db["documents"].find_one({"_id": ObjectId(document_id)})
+    document = await db[DocumentModel.collection].find_one({"_id": document_id})
     if not document:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -140,13 +146,12 @@ async def update_document(
     update_data = document_update.model_dump(exclude_unset=True)
     if update_data:
         update_data["updated_at"] = datetime.utcnow()
-        await db["documents"].update_one(
-            {"_id": ObjectId(document_id)},
+        await db[DocumentModel.collection].update_one(
+            {"_id": document_id},
             {"$set": update_data}
         )
     
-    updated_document = await db["documents"].find_one({"_id": ObjectId(document_id)})
-    updated_document["_id"] = str(updated_document["_id"])
+    updated_document = await db[DocumentModel.collection].find_one({"_id": document_id})
     return updated_document
 
 
@@ -154,12 +159,12 @@ async def update_document(
 async def delete_document(
     document_id: str,
     db=Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Delete a document
     """
-    document = await db["documents"].find_one({"_id": ObjectId(document_id)})
+    document = await db[DocumentModel.collection].find_one({"_id": document_id})
     if not document:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -174,7 +179,7 @@ async def delete_document(
         logger.error(f"Error deleting file: {str(e)}")
     
     # Delete the document record
-    await db["documents"].delete_one({"_id": ObjectId(document_id)})
+    await db[DocumentModel.collection].delete_one({"_id": document_id})
     
     return None
 
@@ -183,12 +188,12 @@ async def delete_document(
 async def process_document(
     document_id: str,
     db=Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Process a document for data extraction
     """
-    document = await db["documents"].find_one({"_id": ObjectId(document_id)})
+    document = await db[DocumentModel.collection].find_one({"_id": document_id})
     if not document:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -196,11 +201,10 @@ async def process_document(
         )
     
     # In MVP, we'll just mark it as processed
-    await db["documents"].update_one(
-        {"_id": ObjectId(document_id)},
+    await db[DocumentModel.collection].update_one(
+        {"_id": document_id},
         {"$set": {"processed": True, "updated_at": datetime.utcnow()}}
     )
     
-    updated_document = await db["documents"].find_one({"_id": ObjectId(document_id)})
-    updated_document["_id"] = str(updated_document["_id"])
-    return updated_document 
+    updated_document = await db[DocumentModel.collection].find_one({"_id": document_id})
+    return updated_document

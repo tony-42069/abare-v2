@@ -6,6 +6,7 @@ from typing import List
 
 # Import models and schemas
 from app.schemas.property import Property, PropertyCreate, PropertyUpdate
+from app.schemas.user import UserInDB
 from app.services.property import (
     get_properties,
     get_property,
@@ -26,7 +27,7 @@ async def list_properties(
     skip: int = 0,
     limit: int = 100,
     db = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     List all properties.
@@ -39,7 +40,7 @@ async def list_properties(
 async def create_new_property(
     property_data: PropertyCreate,
     db = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Create a new property.
@@ -52,7 +53,7 @@ async def create_new_property(
 async def get_property_by_id(
     property_id: str = Path(..., title="The ID of the property to get"),
     db = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Get a property by ID.
@@ -71,7 +72,7 @@ async def update_property_by_id(
     property_data: PropertyUpdate,
     property_id: str = Path(..., title="The ID of the property to update"),
     db = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Update a property.
@@ -89,7 +90,7 @@ async def update_property_by_id(
 async def delete_property_by_id(
     property_id: str = Path(..., title="The ID of the property to delete"),
     db = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Delete a property.
@@ -100,4 +101,4 @@ async def delete_property_by_id(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Property with ID {property_id} not found"
         )
-    return None 
+    return None

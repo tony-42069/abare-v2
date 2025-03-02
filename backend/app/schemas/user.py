@@ -1,10 +1,10 @@
 """
 User schemas for request and response validation
 """
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field, validator
 import re
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 
 
 class UserBase(BaseModel):
@@ -19,8 +19,9 @@ class UserCreate(UserBase):
     """Schema for creating a new user"""
     password: str
     
-    @validator('password')
-    def password_strength(cls, v):
+    @field_validator('password')
+    @classmethod
+    def password_strength(cls, v: str) -> str:
         """Validate password strength"""
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters long')
@@ -40,8 +41,9 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     is_active: Optional[bool] = None
     
-    @validator('password')
-    def password_strength(cls, v):
+    @field_validator('password')
+    @classmethod
+    def password_strength(cls, v: Optional[str]) -> Optional[str]:
         """Validate password strength"""
         if v is None:
             return v
@@ -64,10 +66,10 @@ class UserInDB(UserBase):
     updated_at: datetime
     last_login: Optional[datetime] = None
     
-    model_config = {
-        "from_attributes": True,
-        "populate_by_name": True
-    }
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True
+    )
 
 
 class User(UserBase):
@@ -77,9 +79,9 @@ class User(UserBase):
     updated_at: datetime
     last_login: Optional[datetime] = None
     
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = ConfigDict(
+        from_attributes=True
+    )
 
 
 class Token(BaseModel):
@@ -96,4 +98,4 @@ class TokenData(BaseModel):
 class UserLogin(BaseModel):
     """Schema for user login"""
     email: EmailStr
-    password: str 
+    password: str

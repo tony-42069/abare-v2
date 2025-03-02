@@ -1,9 +1,9 @@
 """
 Document schemas for request and response validation
 """
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class DocumentBase(BaseModel):
@@ -35,10 +35,10 @@ class DocumentInDB(DocumentBase):
     created_at: datetime
     updated_at: datetime
     
-    model_config = {
-        "from_attributes": True,
-        "populate_by_name": True
-    }
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True
+    )
 
 
 class Document(DocumentBase):
@@ -51,9 +51,9 @@ class Document(DocumentBase):
     created_at: datetime
     updated_at: datetime
     
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = ConfigDict(
+        from_attributes=True
+    )
 
 
 class DocumentUploadResult(BaseModel):
@@ -63,4 +63,4 @@ class DocumentUploadResult(BaseModel):
     file_type: str
     file_size: int
     upload_success: bool
-    message: Optional[str] = None 
+    message: Optional[str] = None

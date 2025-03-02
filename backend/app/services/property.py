@@ -4,14 +4,13 @@ Property service for business logic related to properties
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from bson import ObjectId
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.models.property import Property
-from app.schemas.property import PropertyCreate, PropertyUpdate
+from app.models.property import Property as PropertyModel
+from app.schemas.property import Property, PropertyCreate, PropertyUpdate
 
 
 async def get_properties(
-    db: AsyncIOMotorDatabase,
+    db: Any,
     skip: int = 0,
     limit: int = 100
 ) -> List[Property]:
@@ -19,99 +18,108 @@ async def get_properties(
     Get all properties with pagination
     """
     properties = []
-    property_collection = db[Property.collection]
+    property_collection = db[PropertyModel.collection]
     
-    cursor = property_collection.find().skip(skip).limit(limit)
-    async for property_doc in cursor:
-        properties.append(Property(**property_doc))
+    # Handle both MongoDB and in-memory DB
+    if hasattr(property_collection, "find"):
+        cursor = property_collection.find().skip(skip).limit(limit)
+        async for property_doc in cursor:
+            property_doc["id"] = property_doc.pop("_id")
+            properties.append(Property(**property_doc))
+    else:
+        # In-memory DB
+        all_properties = await property_collection.find({})
+        for property_doc in all_properties[skip:skip+limit]:
+            property_doc["id"] = property_doc.pop("_id")
+            properties.append(Property(**property_doc))
     
     return properties
 
 
 async def get_property(
-    db: AsyncIOMotorDatabase,
+    db: Any,
     property_id: str
 ) -> Optional[Property]:
     """
     Get a property by ID
     """
-    property_collection = db[Property.collection]
+    property_collection = db[PropertyModel.collection]
     
-    if not ObjectId.is_valid(property_id):
-        return None
-        
     property_doc = await property_collection.find_one({"_id": property_id})
     
     if property_doc:
+        property_doc["id"] = property_doc.pop("_id")
         return Property(**property_doc)
     
     return None
 
 
 async def create_property(
-    db: AsyncIOMotorDatabase,
+    db: Any,
     property_data: PropertyCreate
 ) -> Property:
     """
     Create a new property
     """
-    property_collection = db[Property.collection]
+    property_collection = db[PropertyModel.collection]
     
-    # Create new property instance
-    new_property = Property(
-        name=property_data.name,
-        property_type=property_data.property_type,
-        property_class=property_data.property_class,
-        year_built=property_data.year_built,
-        total_sf=property_data.total_sf,
-        status=property_data.status,
-        description=property_data.description,
-        features=property_data.features,
-        address=property_data.address.model_dump(),
-        financial_metrics=property_data.financial_metrics.model_dump() if property_data.financial_metrics else {},
-        tenants=[tenant.model_dump() for tenant in property_data.tenants],
-        document_ids=[]
-    )
+    # Generate a new ID
+    property_id = str(ObjectId())
+    
+    # Prepare property data
+    property_dict = property_data.model_dump()
+    property_dict.update({
+        "_id": property_id,
+        "document_ids": [],
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    })
+    
+    # Convert nested objects to dictionaries
+    if "address" in property_dict and property_dict["address"]:
+        property_dict["address"] = property_dict["address"].model_dump() if hasattr(property_dict["address"], "model_dump") else property_dict["address"]
+    
+    if "financial_metrics" in property_dict and property_dict["financial_metrics"]:
+        property_dict["financial_metrics"] = property_dict["financial_metrics"].model_dump() if hasattr(property_dict["financial_metrics"], "model_dump") else property_dict["financial_metrics"]
+    
+    if "tenants" in property_dict and property_dict["tenants"]:
+        property_dict["tenants"] = [tenant.model_dump() if hasattr(tenant, "model_dump") else tenant for tenant in property_dict["tenants"]]
     
     # Insert into database
-    property_dict = new_property.model_dump(by_alias=True)
     await property_collection.insert_one(property_dict)
     
-    return new_property
+    # Return the created property
+    property_dict["id"] = property_dict.pop("_id")
+    return Property(**property_dict)
 
 
 async def update_property(
-    db: AsyncIOMotorDatabase,
+    db: Any,
     property_id: str,
     property_data: PropertyUpdate
 ) -> Optional[Property]:
     """
     Update a property
     """
-    property_collection = db[Property.collection]
-    
-    if not ObjectId.is_valid(property_id):
-        return None
+    property_collection = db[PropertyModel.collection]
     
     # Get current property
     property_doc = await property_collection.find_one({"_id": property_id})
     if not property_doc:
         return None
     
-    current_property = Property(**property_doc)
-    
     # Prepare update data
     update_data = property_data.model_dump(exclude_unset=True)
     
     # Handle nested objects
     if "address" in update_data and update_data["address"]:
-        update_data["address"] = update_data["address"].model_dump()
+        update_data["address"] = update_data["address"].model_dump() if hasattr(update_data["address"], "model_dump") else update_data["address"]
     
     if "financial_metrics" in update_data and update_data["financial_metrics"]:
-        update_data["financial_metrics"] = update_data["financial_metrics"].model_dump()
+        update_data["financial_metrics"] = update_data["financial_metrics"].model_dump() if hasattr(update_data["financial_metrics"], "model_dump") else update_data["financial_metrics"]
     
     if "tenants" in update_data and update_data["tenants"]:
-        update_data["tenants"] = [tenant.model_dump() for tenant in update_data["tenants"]]
+        update_data["tenants"] = [tenant.model_dump() if hasattr(tenant, "model_dump") else tenant for tenant in update_data["tenants"]]
     
     # Always update the updated_at field
     update_data["updated_at"] = datetime.utcnow()
@@ -124,21 +132,23 @@ async def update_property(
     
     # Get updated property
     updated_property_doc = await property_collection.find_one({"_id": property_id})
+    updated_property_doc["id"] = updated_property_doc.pop("_id")
     return Property(**updated_property_doc)
 
 
 async def delete_property(
-    db: AsyncIOMotorDatabase,
+    db: Any,
     property_id: str
 ) -> bool:
     """
     Delete a property
     """
-    property_collection = db[Property.collection]
-    
-    if not ObjectId.is_valid(property_id):
-        return False
+    property_collection = db[PropertyModel.collection]
     
     result = await property_collection.delete_one({"_id": property_id})
     
-    return result.deleted_count > 0 
+    # Handle both MongoDB and in-memory DB
+    if hasattr(result, "deleted_count"):
+        return result.deleted_count > 0
+    else:
+        return result.get("deleted_count", 0) > 0

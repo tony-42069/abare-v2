@@ -3,7 +3,7 @@ Property schemas for request and response validation
 """
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class AddressSchema(BaseModel):
@@ -43,14 +43,14 @@ class PropertyBase(BaseModel):
     total_sf: Optional[float] = None
     status: str = "active"
     description: Optional[str] = None
-    features: List[str] = []
+    features: List[str] = Field(default_factory=list)
 
 
 class PropertyCreate(PropertyBase):
     """Schema for creating a new property"""
     address: AddressSchema
     financial_metrics: Optional[FinancialMetricsSchema] = None
-    tenants: List[TenantSchema] = []
+    tenants: List[TenantSchema] = Field(default_factory=list)
 
 
 class PropertyUpdate(BaseModel):
@@ -74,14 +74,14 @@ class PropertyInDB(PropertyBase):
     address: Dict[str, str]
     financial_metrics: Dict[str, float]
     tenants: List[Dict[str, Any]]
-    document_ids: List[str]
+    document_ids: List[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
     
-    model_config = {
-        "from_attributes": True,
-        "populate_by_name": True
-    }
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True
+    )
 
 
 class Property(PropertyBase):
@@ -94,6 +94,6 @@ class Property(PropertyBase):
     created_at: datetime
     updated_at: datetime
     
-    model_config = {
-        "from_attributes": True
-    } 
+    model_config = ConfigDict(
+        from_attributes=True
+    )

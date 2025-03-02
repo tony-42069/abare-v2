@@ -3,7 +3,7 @@ Analysis schemas for request and response validation
 """
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class AnalysisBase(BaseModel):
@@ -11,9 +11,9 @@ class AnalysisBase(BaseModel):
     title: str
     description: Optional[str] = None
     property_id: str
-    document_ids: List[str] = []
+    document_ids: List[str] = Field(default_factory=list)
     analysis_type: str
-    parameters: Dict[str, Any] = {}
+    parameters: Dict[str, Any] = Field(default_factory=dict)
 
 
 class AnalysisCreate(AnalysisBase):
@@ -35,32 +35,32 @@ class AnalysisUpdate(BaseModel):
 class AnalysisInDB(AnalysisBase):
     """Schema for analysis from database"""
     id: str = Field(..., alias="_id")
-    results: Dict[str, Any] = {}
+    results: Dict[str, Any] = Field(default_factory=dict)
     status: str
     created_by: str
     created_at: datetime
     updated_at: datetime
     completed_at: Optional[datetime] = None
     
-    model_config = {
-        "from_attributes": True,
-        "populate_by_name": True
-    }
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True
+    )
 
 
 class Analysis(AnalysisBase):
     """Schema for analysis response"""
     id: str
-    results: Dict[str, Any] = {}
+    results: Dict[str, Any] = Field(default_factory=dict)
     status: str
     created_by: str
     created_at: datetime
     updated_at: datetime
     completed_at: Optional[datetime] = None
     
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = ConfigDict(
+        from_attributes=True
+    )
 
 
 class AnalysisResult(BaseModel):
@@ -69,6 +69,6 @@ class AnalysisResult(BaseModel):
     title: str
     status: str
     analysis_type: str
-    results: Dict[str, Any] = {}
+    results: Dict[str, Any] = Field(default_factory=dict)
     completed_at: Optional[datetime] = None
-    message: Optional[str] = None 
+    message: Optional[str] = None

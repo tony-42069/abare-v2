@@ -8,18 +8,34 @@ from datetime import datetime
 from bson import ObjectId
 
 from app.deps import get_db, get_current_active_user
-from app.models.user import User
+from app.models.analysis import Analysis as AnalysisModel
+from app.models.property import Property as PropertyModel
 from app.schemas.analysis import Analysis, AnalysisCreate, AnalysisUpdate, AnalysisResult
+from app.schemas.user import UserInDB
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def calculate_cap_rate(noi: float, property_value: float) -> float:
+    """Calculate cap rate from NOI and property value"""
+    if property_value == 0:
+        return 0
+    return (noi / property_value) * 100
+
+
+def calculate_price_per_sf(property_value: float, total_sf: float) -> float:
+    """Calculate price per square foot"""
+    if total_sf == 0:
+        return 0
+    return property_value / total_sf
 
 
 @router.get("/", response_model=List[Analysis])
 async def list_analyses(
     property_id: Optional[str] = None,
     db=Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Retrieve all analyses, optionally filtered by property_id
@@ -28,7 +44,7 @@ async def list_analyses(
     if property_id:
         query["property_id"] = property_id
         
-    analyses = await db["analyses"].find(query).to_list(1000)
+    analyses = await db[AnalysisModel.collection].find(query).to_list(1000)
     return analyses
 
 
@@ -37,22 +53,30 @@ async def create_analysis(
     analysis_create: AnalysisCreate,
     background_tasks: BackgroundTasks,
     db=Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Create a new analysis
     """
+    # Verify property exists
+    property_doc = await db[PropertyModel.collection].find_one({"_id": analysis_create.property_id})
+    if not property_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Property not found"
+        )
+    
     analysis = analysis_create.model_dump()
     analysis.update({
+        "_id": str(ObjectId()),
         "status": "pending",
         "results": {},
-        "created_by": str(current_user.id),
+        "created_by": current_user.id,
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
     })
     
-    result = await db["analyses"].insert_one(analysis)
-    analysis["_id"] = str(result.inserted_id)
+    await db[AnalysisModel.collection].insert_one(analysis)
     
     # Schedule analysis processing in background
     # background_tasks.add_task(run_analysis, analysis["_id"])
@@ -64,18 +88,17 @@ async def create_analysis(
 async def get_analysis(
     analysis_id: str,
     db=Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Retrieve an analysis by ID
     """
-    analysis = await db["analyses"].find_one({"_id": ObjectId(analysis_id)})
+    analysis = await db[AnalysisModel.collection].find_one({"_id": analysis_id})
     if not analysis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Analysis not found"
         )
-    analysis["_id"] = str(analysis["_id"])
     return analysis
 
 
@@ -84,12 +107,12 @@ async def update_analysis(
     analysis_id: str,
     analysis_update: AnalysisUpdate,
     db=Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Update analysis metadata
     """
-    analysis = await db["analyses"].find_one({"_id": ObjectId(analysis_id)})
+    analysis = await db[AnalysisModel.collection].find_one({"_id": analysis_id})
     if not analysis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -106,13 +129,12 @@ async def update_analysis(
     update_data = analysis_update.model_dump(exclude_unset=True)
     if update_data:
         update_data["updated_at"] = datetime.utcnow()
-        await db["analyses"].update_one(
-            {"_id": ObjectId(analysis_id)},
+        await db[AnalysisModel.collection].update_one(
+            {"_id": analysis_id},
             {"$set": update_data}
         )
     
-    updated_analysis = await db["analyses"].find_one({"_id": ObjectId(analysis_id)})
-    updated_analysis["_id"] = str(updated_analysis["_id"])
+    updated_analysis = await db[AnalysisModel.collection].find_one({"_id": analysis_id})
     return updated_analysis
 
 
@@ -120,19 +142,19 @@ async def update_analysis(
 async def delete_analysis(
     analysis_id: str,
     db=Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Delete an analysis
     """
-    analysis = await db["analyses"].find_one({"_id": ObjectId(analysis_id)})
+    analysis = await db[AnalysisModel.collection].find_one({"_id": analysis_id})
     if not analysis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Analysis not found"
         )
     
-    await db["analyses"].delete_one({"_id": ObjectId(analysis_id)})
+    await db[AnalysisModel.collection].delete_one({"_id": analysis_id})
     return None
 
 
@@ -140,31 +162,57 @@ async def delete_analysis(
 async def process_analysis(
     analysis_id: str,
     db=Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: UserInDB = Depends(get_current_active_user)
 ):
     """
     Run the analysis processing
     """
-    analysis = await db["analyses"].find_one({"_id": ObjectId(analysis_id)})
+    analysis = await db[AnalysisModel.collection].find_one({"_id": analysis_id})
     if not analysis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Analysis not found"
         )
     
-    # In MVP, we'll just simulate processing with some sample results
-    mock_results = {
-        "sample_metric_1": 0.85,
-        "sample_metric_2": 125.7,
-        "text_summary": "This is a placeholder for analysis results."
+    # Get property data for analysis
+    property_doc = await db[PropertyModel.collection].find_one({"_id": analysis["property_id"]})
+    if not property_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Property not found"
+        )
+    
+    # Calculate financial metrics
+    noi = property_doc.get("financial_metrics", {}).get("noi", 0)
+    property_value = property_doc.get("financial_metrics", {}).get("property_value", 0)
+    total_sf = property_doc.get("total_sf", 0)
+    
+    cap_rate = calculate_cap_rate(noi, property_value)
+    price_per_sf = calculate_price_per_sf(property_value, total_sf)
+    
+    # Generate analysis results
+    results = {
+        "noi": noi,
+        "property_value": property_value,
+        "cap_rate": cap_rate,
+        "price_per_sf": price_per_sf,
+        "total_sf": total_sf,
+        "analysis_summary": f"Property has a cap rate of {cap_rate:.2f}% and price per SF of ${price_per_sf:.2f}."
     }
     
-    # Update analysis with mock results
+    # Add additional metrics based on analysis type
+    if analysis["analysis_type"] == "financial":
+        # Add more financial metrics
+        occupancy = property_doc.get("financial_metrics", {}).get("occupancy_rate", 0)
+        results["occupancy_rate"] = occupancy
+        results["vacancy_loss"] = noi * (1 - occupancy/100) if occupancy > 0 else 0
+    
+    # Update analysis with results
     now = datetime.utcnow()
-    await db["analyses"].update_one(
-        {"_id": ObjectId(analysis_id)},
+    await db[AnalysisModel.collection].update_one(
+        {"_id": analysis_id},
         {"$set": {
-            "results": mock_results, 
+            "results": results, 
             "status": "completed", 
             "updated_at": now,
             "completed_at": now
@@ -177,7 +225,7 @@ async def process_analysis(
         "title": analysis["title"],
         "status": "completed",
         "analysis_type": analysis["analysis_type"],
-        "results": mock_results,
+        "results": results,
         "completed_at": now,
         "message": "Analysis completed successfully"
-    } 
+    }

@@ -4,7 +4,7 @@ Analysis model for database representation
 from typing import Optional, List, Dict, Any, ClassVar
 from datetime import datetime
 from bson import ObjectId
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class Analysis(BaseModel):
@@ -30,8 +30,20 @@ class Analysis(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[datetime] = None
     
-    model_config = {
-        "populate_by_name": True,
-        "arbitrary_types_allowed": True,
-        "from_attributes": True
-    } 
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "title": "Financial Analysis",
+                "description": "Cap rate and ROI analysis",
+                "property_id": "5f8a3f2b9d3e2a1b8c7d6e5f",
+                "analysis_type": "financial",
+                "parameters": {
+                    "cap_rate": 0.05,
+                    "holding_period": 5
+                }
+            }
+        }
+    )

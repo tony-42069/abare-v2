@@ -19,6 +19,7 @@ yarn-error.log*
 
 # Local env files
 .env*.local
+.env
 
 # IDE and editor files
 .idea/
@@ -35,4 +36,8 @@ Thumbs.db
 next-env.d.ts
 
 # Coverage
-coverage/ 
+coverage/
+
+# Project documentation
+ABARE_V2_IMPLEMENTATION_PLAN.md
+ABARE_V2_DIRECTORY_STRUCTURE.md
