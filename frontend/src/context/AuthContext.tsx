@@ -1,15 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/router';
-import axios from 'axios';
 import jwtDecode from 'jwt-decode';
-
-// Auth types
-export interface User {
-  id: string;
-  email: string;
-  full_name?: string;
-  is_admin: boolean;
-}
+import { User } from '../types';
+import authService from '../services/auth';
+import { getToken, getUser } from '../utils/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -56,43 +50,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Initialize auth state from localStorage
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
+    const storedToken = getToken();
+    const storedUser = getUser();
+    
     if (storedToken && isTokenValid(storedToken)) {
       setToken(storedToken);
-      fetchUserProfile(storedToken);
+      setUser(storedUser);
+      
+      // Verify token with backend and refresh user data
+      authService.verifyToken(storedToken)
+        .then(isValid => {
+          if (isValid) {
+            authService.getProfile()
+              .then(userData => {
+                setUser(userData);
+              })
+              .catch(console.error)
+              .finally(() => setIsLoading(false));
+          } else {
+            // Token is invalid
+            authService.logout();
+            setUser(null);
+            setToken(null);
+            setIsLoading(false);
+          }
+        })
+        .catch(() => {
+          // Error verifying token
+          authService.logout();
+          setUser(null);
+          setToken(null);
+          setIsLoading(false);
+        });
     } else {
-      localStorage.removeItem('token');
+      // No token or invalid token
+      authService.logout();
       setIsLoading(false);
     }
   }, []);
-
-  // Fetch user profile
-  const fetchUserProfile = async (authToken: string) => {
-    try {
-      const response = await axios.get('/api/auth/me', {
-        headers: {
-          Authorization: `Bearer ${authToken}`
-        }
-      });
-      setUser(response.data);
-    } catch (err) {
-      console.error('Failed to fetch user profile', err);
-      localStorage.removeItem('token');
-      setToken(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Login function
   const login = async (email: string, password: string) => {
     setError(null);
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
-      const { access_token } = response.data;
-      localStorage.setItem('token', access_token);
-      setToken(access_token);
-      await fetchUserProfile(access_token);
+      const { user, token } = await authService.login({ email, password });
+      setUser(user);
+      setToken(token);
       router.push('/dashboard');
     } catch (err: any) {
       console.error('Login failed', err);
@@ -105,8 +108,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (email: string, password: string, fullName: string) => {
     setError(null);
     try {
-      await axios.post('/api/auth/register', { email, password, full_name: fullName });
-      await login(email, password);
+      const { user, token } = await authService.register({ 
+        email, 
+        password, 
+        full_name: fullName 
+      });
+      setUser(user);
+      setToken(token);
+      router.push('/dashboard');
     } catch (err: any) {
       console.error('Registration failed', err);
       setError(err.response?.data?.detail || 'Registration failed. Please try again.');
@@ -116,42 +125,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Logout function
   const logout = () => {
-    localStorage.removeItem('token');
+    authService.logout();
     setUser(null);
     setToken(null);
     router.push('/login');
   };
-
-  // Set up axios interceptor to include token in requests
-  useEffect(() => {
-    const requestInterceptor = axios.interceptors.request.use(
-      (config) => {
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => Promise.reject(error)
-    );
-
-    const responseInterceptor = axios.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          localStorage.removeItem('token');
-          setUser(null);
-          setToken(null);
-          router.push('/login');
-        }
-        return Promise.reject(error);
-      }
-    );
-
-    return () => {
-      axios.interceptors.request.eject(requestInterceptor);
-      axios.interceptors.response.eject(responseInterceptor);
-    };
-  }, [token, router]);
 
   return (
     <AuthContext.Provider
@@ -180,4 +158,4 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
-export default AuthContext; 
+export default AuthContext;
