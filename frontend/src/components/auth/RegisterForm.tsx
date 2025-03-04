@@ -22,7 +22,13 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     validate: {
       fullName: (value) => (value.trim().length >= 3 ? null : 'Name must be at least 3 characters'),
       email: (value) => (/^\S+@\S+$/.test(value) ? null : 'Invalid email'),
-      password: (value) => (value.length >= 8 ? null : 'Password must be at least 8 characters'),
+      password: (value) => {
+        if (value.length < 8) return 'Password must be at least 8 characters';
+        if (!/[A-Z]/.test(value)) return 'Password must contain at least one uppercase letter';
+        if (!/[a-z]/.test(value)) return 'Password must contain at least one lowercase letter';
+        if (!/[0-9]/.test(value)) return 'Password must contain at least one number';
+        return null;
+      },
       confirmPassword: (value, values) =>
         value === values.password ? null : 'Passwords do not match',
     },
@@ -97,4 +103,4 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   );
 };
 
-export default RegisterForm; 
+export default RegisterForm;

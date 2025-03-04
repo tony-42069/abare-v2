@@ -29,11 +29,27 @@ const authService = {
    * Register new user
    */
   async register(data: RegisterData): Promise<{ user: User; token: string }> {
-    // Register the user
-    await api.post<User>(`${AUTH_ENDPOINT}/register`, data);
-    
-    // Login after successful registration
-    return this.login({ email: data.email, password: data.password });
+    try {
+      // Register the user
+      await api.post<User>(`${AUTH_ENDPOINT}/register`, data);
+      
+      // Login after successful registration
+      return this.login({ email: data.email, password: data.password });
+    } catch (error: any) {
+      // Handle validation errors
+      if (error.response && error.response.status === 422) {
+        const valErrors = error.response.data.detail;
+        // Extract the error message
+        let errorMessage = 'Registration failed. Please check your input.';
+        if (Array.isArray(valErrors)) {
+          errorMessage = valErrors.map(err => err.msg).join('. ');
+        } else if (typeof valErrors === 'string') {
+          errorMessage = valErrors;
+        }
+        throw new Error(errorMessage);
+      }
+      throw error;
+    }
   },
 
   /**

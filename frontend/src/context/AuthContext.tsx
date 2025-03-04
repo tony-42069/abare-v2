@@ -118,7 +118,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       router.push('/dashboard');
     } catch (err: any) {
       console.error('Registration failed', err);
-      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      // Safely handle error message to ensure we're not passing objects to React
+      const errorMessage = err instanceof Error ? 
+        err.message : 
+        (err.response?.data?.detail && typeof err.response.data.detail === 'string' ? 
+          err.response.data.detail : 
+          'Registration failed. Please try again.');
+      
+      setError(errorMessage);
       throw err;
     }
   };
