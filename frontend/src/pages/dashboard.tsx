@@ -54,7 +54,7 @@ const DashboardPage: NextPage = () => {
     return (
       <Container>
         <Center style={{ height: '100vh' }}>
-          <Loader size="xl" />
+          <Loader size="xl" color="var(--abare-blue)" />
         </Center>
       </Container>
     );
@@ -99,45 +99,45 @@ const DashboardPage: NextPage = () => {
 
       {/* Stats Cards */}
       <SimpleGrid cols={3} spacing="lg" mb="xl" breakpoints={[{ maxWidth: 'sm', cols: 1 }]}>
-        <Card shadow="sm" p="lg" radius="md" withBorder>
+        <Card className="glass-card stats-card">
           <Group position="apart">
             <div>
-              <Text size="xs" color="dimmed" weight={700} transform="uppercase">
+              <Text size="xs" color="var(--abare-text-secondary)" weight={700} transform="uppercase">
                 Total Properties
               </Text>
               <Title order={3}>{stats?.totalProperties || 0}</Title>
             </div>
-            <ThemeIcon size={56} radius="md" color="blue">
+            <div className="stats-icon">
               <IconBuilding size={28} />
-            </ThemeIcon>
+            </div>
           </Group>
         </Card>
 
-        <Card shadow="sm" p="lg" radius="md" withBorder>
+        <Card className="glass-card stats-card">
           <Group position="apart">
             <div>
-              <Text size="xs" color="dimmed" weight={700} transform="uppercase">
+              <Text size="xs" color="var(--abare-text-secondary)" weight={700} transform="uppercase">
                 Portfolio Value
               </Text>
               <Title order={3}>{stats ? formatCurrency(stats.totalValue) : '$0'}</Title>
             </div>
-            <ThemeIcon size={56} radius="md" color="green">
+            <div className="stats-icon">
               <IconCurrencyDollar size={28} />
-            </ThemeIcon>
+            </div>
           </Group>
         </Card>
 
-        <Card shadow="sm" p="lg" radius="md" withBorder>
+        <Card className="glass-card stats-card">
           <Group position="apart">
             <div>
-              <Text size="xs" color="dimmed" weight={700} transform="uppercase">
+              <Text size="xs" color="var(--abare-text-secondary)" weight={700} transform="uppercase">
                 Average Cap Rate
               </Text>
               <Title order={3}>{stats ? formatPercentage(stats.averageCapRate) : '0%'}</Title>
             </div>
-            <ThemeIcon size={56} radius="md" color="orange">
+            <div className="stats-icon">
               <IconPercentage size={28} />
-            </ThemeIcon>
+            </div>
           </Group>
         </Card>
       </SimpleGrid>
@@ -145,36 +145,58 @@ const DashboardPage: NextPage = () => {
       <Grid gutter="lg" mb="xl">
         {/* Recent Properties */}
         <Grid.Col span={8}>
-          <Card shadow="sm" p="lg" radius="md" withBorder>
+          <Card className="glass-card" p="lg">
             <Group position="apart" mb="md">
               <Title order={4}>Recent Properties</Title>
               <Button 
                 variant="subtle" 
                 compact 
+                className="gradient-text"
                 onClick={() => router.push('/properties')}
               >
                 View All
               </Button>
             </Group>
-            <Divider mb="md" />
+            <Divider 
+              mb="md" 
+              sx={{ borderColor: 'var(--abare-card-border)' }}
+            />
             
             {properties.length === 0 ? (
-              <Text color="dimmed" align="center" py="lg">
+              <Text color="var(--abare-text-secondary)" align="center" py="lg">
                 No properties found. Add your first property to get started.
               </Text>
             ) : (
               <Stack spacing="xs">
                 {properties.map((property) => (
-                  <Paper key={property.id} p="md" withBorder>
+                  <Paper 
+                    key={property.id} 
+                    p="md" 
+                    className="glass-card"
+                    sx={{ 
+                      background: 'rgba(15, 23, 42, 0.3)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateX(5px)'
+                      }
+                    }}
+                  >
                     <Group position="apart">
                       <div>
                         <Text weight={500}>{property.name}</Text>
-                        <Text size="xs" color="dimmed">
+                        <Text size="xs" color="var(--abare-text-secondary)">
                           {property.address.city}, {property.address.state}
                         </Text>
                       </div>
                       <div>
-                        <Badge color={property.status === 'active' ? 'green' : 'gray'}>
+                        <Badge 
+                          sx={{
+                            background: property.status === 'active' 
+                              ? 'linear-gradient(45deg, var(--abare-blue), var(--abare-purple))' 
+                              : 'rgba(148, 163, 184, 0.2)',
+                            color: property.status === 'active' ? 'white' : 'var(--abare-text-secondary)'
+                          }}
+                        >
                           {property.status}
                         </Badge>
                       </div>
@@ -187,7 +209,9 @@ const DashboardPage: NextPage = () => {
             <Button 
               fullWidth 
               mt="md" 
+              className="gradient-button"
               onClick={() => router.push('/properties/new')}
+              sx={{ marginTop: '20px' }}
             >
               Add New Property
             </Button>
@@ -196,15 +220,18 @@ const DashboardPage: NextPage = () => {
 
         {/* Quick Actions */}
         <Grid.Col span={4}>
-          <Card shadow="sm" p="lg" radius="md" withBorder>
+          <Card className="glass-card" p="lg">
             <Title order={4} mb="md">Quick Actions</Title>
-            <Divider mb="md" />
+            <Divider 
+              mb="md" 
+              sx={{ borderColor: 'var(--abare-card-border)' }}
+            />
             
             <Stack spacing="md">
               <Button 
                 leftIcon={<IconBuilding size={20} />} 
                 fullWidth 
-                variant="outline"
+                className="gradient-button"
                 onClick={() => router.push('/properties/new')}
               >
                 Add Property
@@ -213,7 +240,7 @@ const DashboardPage: NextPage = () => {
               <Button 
                 leftIcon={<IconFiles size={20} />} 
                 fullWidth 
-                variant="outline"
+                className="gradient-button"
                 onClick={() => router.push('/documents/upload')}
               >
                 Upload Document
@@ -222,7 +249,7 @@ const DashboardPage: NextPage = () => {
               <Button 
                 leftIcon={<IconFileAnalytics size={20} />} 
                 fullWidth 
-                variant="outline"
+                className="gradient-button"
                 onClick={() => router.push('/analyses/new')}
               >
                 Create Analysis
@@ -231,7 +258,7 @@ const DashboardPage: NextPage = () => {
               <Button 
                 leftIcon={<IconChartBar size={20} />} 
                 fullWidth 
-                variant="outline"
+                className="gradient-button"
                 onClick={() => router.push('/dashboard/reports')}
               >
                 Generate Report
@@ -243,41 +270,53 @@ const DashboardPage: NextPage = () => {
 
       {/* Feature Cards */}
       <SimpleGrid cols={3} spacing="lg" breakpoints={[{ maxWidth: 'sm', cols: 1 }]}>
-        <Card shadow="sm" p="lg" radius="md" withBorder>
-          <ThemeIcon size={40} radius="md" color="blue" mb="md">
+        <Card className="glass-card" p="lg">
+          <div className="stats-icon" style={{ marginBottom: '1rem' }}>
             <IconBuilding size={24} />
-          </ThemeIcon>
-          <Title order={3}>Properties</Title>
-          <Text mt="sm" mb="md" color="dimmed">
+          </div>
+          <Title order={3} className="gradient-text">Properties</Title>
+          <Text mt="sm" mb="md" color="var(--abare-text-secondary)">
             Manage your real estate properties, track performance metrics, and view property details.
           </Text>
-          <Button variant="light" fullWidth onClick={() => router.push('/properties')}>
+          <Button 
+            className="gradient-button"
+            fullWidth 
+            onClick={() => router.push('/properties')}
+          >
             View Properties
           </Button>
         </Card>
 
-        <Card shadow="sm" p="lg" radius="md" withBorder>
-          <ThemeIcon size={40} radius="md" color="green" mb="md">
+        <Card className="glass-card" p="lg">
+          <div className="stats-icon" style={{ marginBottom: '1rem' }}>
             <IconFiles size={24} />
-          </ThemeIcon>
-          <Title order={3}>Documents</Title>
-          <Text mt="sm" mb="md" color="dimmed">
+          </div>
+          <Title order={3} className="gradient-text">Documents</Title>
+          <Text mt="sm" mb="md" color="var(--abare-text-secondary)">
             Upload, organize, and access property-related documents including leases, financials, and more.
           </Text>
-          <Button variant="light" fullWidth onClick={() => router.push('/documents')}>
+          <Button 
+            className="gradient-button"
+            fullWidth 
+            onClick={() => router.push('/documents')}
+          >
             View Documents
           </Button>
         </Card>
 
-        <Card shadow="sm" p="lg" radius="md" withBorder>
-          <ThemeIcon size={40} radius="md" color="orange" mb="md">
+        <Card className="glass-card" p="lg">
+          <div className="stats-icon" style={{ marginBottom: '1rem' }}>
             <IconFileAnalytics size={24} />
-          </ThemeIcon>
-          <Title order={3}>Analyses</Title>
-          <Text mt="sm" mb="md" color="dimmed">
+          </div>
+          <Title order={3} className="gradient-text">Analyses</Title>
+          <Text mt="sm" mb="md" color="var(--abare-text-secondary)">
             Run financial analyses on your properties, generate reports, and gain valuable insights.
           </Text>
-          <Button variant="light" fullWidth onClick={() => router.push('/analyses')}>
+          <Button 
+            className="gradient-button"
+            fullWidth 
+            onClick={() => router.push('/analyses')}
+          >
             View Analyses
           </Button>
         </Card>
